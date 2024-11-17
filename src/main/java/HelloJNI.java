@@ -7,6 +7,8 @@ public class HelloJNI {  // Save as HelloJNI.java
 
     // Declare an instance native method sayHello() which receives no parameter and returns void
     public native double[] sayHello(String[] ODEs, double[] intervals, double[] reachParams);
+    public native double[] doTimeStep(String[] ODEs, double[] intervals, double[] reachParams);
+    public native double[] intersectWithGuard(int xDim, int yDim, double[] guardMat, double[] guardVec);
 
 //   // Test Driver
 //   public static void main(String[] args) {

@@ -211,7 +211,7 @@ public class HybridState {
         }
 
         if (lowerBound != null) {
-            if (after instanceof IntervalRealVariable) {
+            if (lowerBound instanceof IntervalRealVariable) {
                 messageArrivalTime.setLowerBound(globalTime.getLowerBound() + (((IntervalRealVariable) lowerBound).getLowerBound()));
             } else {
                 messageArrivalTime.setLowerBound(globalTime.getLowerBound() + (((DiscreteDecimalVariable) lowerBound).getValue().doubleValue()));
@@ -219,7 +219,7 @@ public class HybridState {
         }
 
         if (upperBound != null) {
-            if (after instanceof IntervalRealVariable) {
+            if (upperBound instanceof IntervalRealVariable) {
                 messageArrivalTime.setUpperBound(globalTime.getUpperBound() + (((IntervalRealVariable) upperBound).getUpperBound()));
             } else {
                 messageArrivalTime.setUpperBound(globalTime.getUpperBound() + (((DiscreteDecimalVariable) upperBound).getValue().doubleValue()));

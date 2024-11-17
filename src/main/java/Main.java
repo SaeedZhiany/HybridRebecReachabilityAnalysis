@@ -57,7 +57,9 @@ public class Main {
 //        double [] reachParams = new double [] {50.0, 0.99, 0.01, 7.0, 5};
 //        String[] ODEs_ = {"timer'=1", "tempr'=0.1"};
 
-        double[] resultArray = new HelloJNI().sayHello(ODEs, intervals, reachParams);  // Create an instance and invoke the native method
+//        double[] resultArray = new HelloJNI().sayHello(ODEs, intervals, reachParams);  // Create an instance and invoke the native method
+
+        double[] resultArray = new HelloJNI().doTimeStep(ODEs, intervals, reachParams);
 
         System.out.println("Results from Java");
 

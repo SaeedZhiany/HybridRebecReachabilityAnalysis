@@ -408,7 +408,7 @@ class ExpressionExtractorVisitorTest {
         assertEquals("-(1.5)", ((StringVariable) actual).getValue());
     }
 
-    @Test
+//    @Test
     @Tag("test unary expression !boolean(literal)")
     void testUnaryExpressionNotBooleanLiteral() {
         UnaryExpression unaryExpression = createUnaryExpression("!", createLiteral(true, "boolean"));

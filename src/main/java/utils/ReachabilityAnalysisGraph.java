@@ -3,7 +3,7 @@ package utils;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.StreamWriteConstraints;
+//import com.fasterxml.jackson.core.;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -107,8 +107,8 @@ public class ReachabilityAnalysisGraph {
         ObjectMapper mapper = new ObjectMapper();
 
         // Increase the maximum nesting depth
-        StreamWriteConstraints constraints = StreamWriteConstraints.builder().maxNestingDepth(Integer.MAX_VALUE).build();
-        mapper.getFactory().setStreamWriteConstraints(constraints);
+//        StreamWriteConstraints constraints = StreamWriteConstraints.builder().maxNestingDepth(Integer.MAX_VALUE).build();
+//        mapper.getFactory().setStreamWriteConstraints(constraints);
 
         ObjectWriter ow = mapper.writer().withDefaultPrettyPrinter();
         try {
