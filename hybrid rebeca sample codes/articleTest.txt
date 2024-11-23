@@ -10,7 +10,7 @@ physicalclass HeaterWithSensor(2)
 
   HeaterWithSensor(float temp_) {
     temp = temp_;
-    setMode(On);
+    setMode(Off);
   }
 
   mode On {

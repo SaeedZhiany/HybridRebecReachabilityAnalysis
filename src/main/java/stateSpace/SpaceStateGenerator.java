@@ -53,7 +53,7 @@ public class SpaceStateGenerator {
             double previousEvent = currentEvent;
             currentEvent = Arrays.stream(nextEvents).min().orElseThrow();
 
-            double[] reachParams = new double[]{10.0, 0.99, 0.1, 7.0, currentEvent - previousEvent};
+            double[] reachParams = new double[]{10.0, 0.99, 1, 7.0, currentEvent - previousEvent};
 
             Cloner cloner = new Cloner();
             HybridState updatedPhysicalHybridState = cloner.deepClone(state);
@@ -77,7 +77,13 @@ public class SpaceStateGenerator {
                 }
             }
 
-            updatePhysicalStates(updatedPhysicalHybridState.getPhysicalStates(), updatedPhysicalHybridStates);
+            try {
+                updatePhysicalStates(updatedPhysicalHybridState.getPhysicalStates(), updatedPhysicalHybridStates);
+            } catch (Exception ex){
+                System.out.println("Deadlock happened");
+                reachabilityAnalysisGraph.addNode(rootNode, updatedPhysicalHybridState, "PhysicalUpdate");
+                continue;
+            }
 
 
 
@@ -129,19 +135,40 @@ public class SpaceStateGenerator {
                         (BinaryExpression) Objects.requireNonNull(CompilerUtil.getInvariantCondition(physicalDeclarationName, physicalState.getMode())));
                 PhysicalClassDeclaration physicalClassDeclaration = CompilerUtil.getPhysicalClassDeclaration(physicalDeclarationName);
 
+//                if (invariantSatisfiedResult.getDefinite()) {
+//                    if (invariantSatisfiedResult.getValue()) {
+//                        // CHECKME
+//                        checkGuardIfInvariantIsTrue(updatedPhysicalHybridStates, physicalStateEntry, hybridStateEntry,
+//                                guardSatisfiedResult, physicalDeclarationName);
+//                    } else {
+//                            checkGuardIfInvariantIsFalse(guardSatisfiedResult, physicalDeclarationName, physicalState);
+//                    }
+//                } else {
+//                    //Invariant = True
+//                    checkGuardIfInvariantIsTrue(updatedPhysicalHybridStates, physicalStateEntry, hybridStateEntry,
+//                            guardSatisfiedResult, physicalDeclarationName);
+//                }
                 if (invariantSatisfiedResult.getDefinite()) {
                     if (invariantSatisfiedResult.getValue()) {
                         // CHECKME
                         checkGuardIfInvariantIsTrue(updatedPhysicalHybridStates, physicalStateEntry, hybridStateEntry,
                                 guardSatisfiedResult, physicalDeclarationName);
                     } else {
-                            checkGuardIfInvariantIsFalse(guardSatisfiedResult, physicalDeclarationName, physicalState);
+//                            checkGuardIfInvariantIsFalse(guardSatisfiedResult, physicalDeclarationName, physicalState);
+                        System.out.println("Deadlock happened:");
+                        System.out.println(hybridStateEntry.getValue());
+                        if (updatedPhysicalHybridStates.size() <= 1) {
+                            throw new RuntimeException("Deadlock happened");
+                        } else {
+                            updatedPhysicalHybridStates.remove(hybridStateEntry.getKey());
+                        }
                     }
                 } else {
                     //Invariant = True
                     checkGuardIfInvariantIsTrue(updatedPhysicalHybridStates, physicalStateEntry, hybridStateEntry,
                             guardSatisfiedResult, physicalDeclarationName);
                 }
+//            }
             }
         }
     }

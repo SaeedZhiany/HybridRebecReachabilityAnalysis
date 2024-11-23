@@ -16,6 +16,7 @@ public class NonTimeProgressSOSExecutor {
         add(new TakeMessageSOSExecutor());
         add(new SendStatementSOSExecuter());
         add(new IfStatementSOSExecutor());
+        add(new SetModeSOSExecutor());
     }};
 
     public List<HybridState> generateNextStates(HybridState hybridState, boolean returnTotalStates) {
