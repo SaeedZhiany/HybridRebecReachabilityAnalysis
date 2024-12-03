@@ -28,16 +28,19 @@ public class SpaceStateGenerator {
     }
 
     public void analyzeReachability(JoszefCaller joszefCaller) {
-        double currentEvent = 0.0; // must be tupple
-        double endSimulation = 100.0;
+         // must be tupple
+        double endSimulation = 3;
 
         NonTimeProgressSOSExecutor nonTimeProgressSOSExecutor = new NonTimeProgressSOSExecutor();
         final HybridRebecaCode hybridRebecaCode = CompilerUtil.getHybridRebecaCode();
         HybridState initialState = makeInitialState();
         ReachabilityAnalysisGraph reachabilityAnalysisGraph = new ReachabilityAnalysisGraph(initialState);
         Queue<HybridState> queue = new LinkedList<>(nonTimeProgressSOSExecutor.generateNextStates(initialState, false));
-        while (!queue.isEmpty() && endSimulation > currentEvent) { // should add time upper bound
+        Boolean isFirstRound = true;
+        while (!queue.isEmpty() && isReachedEndYet(queue, endSimulation)) { // should add time upper bound
+            double currentEvent = 0.0;
             HybridState state = queue.poll();
+            currentEvent = state.getGlobalTime().getLowerBound();
             state.updateHash();
 
             ReachabilityAnalysisGraph.TreeNode rootNode = reachabilityAnalysisGraph.findNodeInGraph(state);
@@ -47,34 +50,51 @@ public class SpaceStateGenerator {
             String[] ODEs = RebecInstantiationMapping.getInstance().getCurrentFlows(globalStateModes);
 
             double[] intervals = state.getIntervals(ODEs);
-
             double timeStep = 1;
             double[] nextEvents = state.getEvents(currentEvent, timeStep);
             double previousEvent = currentEvent;
             currentEvent = Arrays.stream(nextEvents).min().orElseThrow();
 
-            double[] reachParams = new double[]{10.0, 0.99, 1, 7.0, currentEvent - previousEvent};
+            double[] reachParams = new double[]{10.0, 0.99, 0.01, 7.0, currentEvent - previousEvent};
 
             Cloner cloner = new Cloner();
             HybridState updatedPhysicalHybridState = cloner.deepClone(state);
-            updatedPhysicalHybridState.updateGlobalTime(currentEvent);
+            if (isFirstRound) {
+                updatedPhysicalHybridState.updateGlobalTime(0, currentEvent);
+            }
+            else {
+                updatedPhysicalHybridState.updateGlobalTime(currentEvent, currentEvent - state.getGlobalTime().getLowerBound() + state.getGlobalTime().getUpperBound());
+            }
             Map<String, HybridState> updatedPhysicalHybridStates = new HashMap<>();
             updatedPhysicalHybridStates.put(updatedPhysicalHybridState.updateHash(), updatedPhysicalHybridState);
             if (ODEs.length > 0) {
                 double[] result = joszefCaller.call(ODEs, intervals, reachParams);
-//                double[] result = {0.0, 0.0, 20.0, 20.0, 0.0, 0.01, 20.0, 20.0};
+                //                double[] result = {0.0, 0.0, 20.0, 20.0, 0.0, 0.01, 20.0, 20.0};
                 int index = 0;
                 int StartIndex = result.length - 2 * ODEs.length;
                 for (String ODE : ODEs) {
                     String[] components = extractVariableNames(ODE);
                     String physicalClassName = components[0], odeVariableName = components[1];
-                    double odeVariableLowerBound = result[2 * index + StartIndex];
-                    double odeVariableUpperBound = result[(index * 2) + 1 + StartIndex];
-
+                    double odeVariableLowerBound, odeVariableUpperBound;
+                    if (isFirstRound) {
+                        odeVariableLowerBound = result[2 * index];
+                        odeVariableUpperBound = result[(index * 2) + 1 + StartIndex];
+                        if (odeVariableUpperBound < odeVariableLowerBound) {
+                            double swap;
+                            swap = odeVariableUpperBound;
+                            odeVariableUpperBound = odeVariableLowerBound;
+                            odeVariableLowerBound = swap;
+                        }
+                    }
+                    else {
+                        odeVariableLowerBound = result[2 * index + StartIndex];
+                        odeVariableUpperBound = result[(index * 2) + 1 + StartIndex];
+                    }
                     PhysicalState physicalState = (PhysicalState) updatedPhysicalHybridState.getActorState(physicalClassName);
                     physicalState.updateVariable(new IntervalRealVariable(odeVariableName, odeVariableLowerBound, odeVariableUpperBound));
                     index++;
                 }
+                isFirstRound = false;
             }
 
             try {
@@ -84,9 +104,6 @@ public class SpaceStateGenerator {
                 reachabilityAnalysisGraph.addNode(rootNode, updatedPhysicalHybridState, "PhysicalUpdate");
                 continue;
             }
-
-
-
             for (Map.Entry<String, HybridState> hybridStateEntry : updatedPhysicalHybridStates.entrySet()) {
                 hybridStateEntry.getValue().updateHash();
                 reachabilityAnalysisGraph.addNode(rootNode, hybridStateEntry.getValue(), "PhysicalUpdate");
@@ -100,24 +117,14 @@ public class SpaceStateGenerator {
             }
         }
         String graph = reachabilityAnalysisGraph.toDot();
+    }
 
-
-        // Queue<HybridState> states = new Queue(makeInitialState);
-        // while queue is not empty {
-        // state = queue.pop() -> hybridState
-        // odes = getCurrentFlows
-        // intervals = state->physicalstate->getvariablevaluation
-        // timeInterval = 0.1
-        // reachparams -> time = interval -> step_size = interval
-        // reault = computeFlowPipe(odes, intervals, timeInterval) -> calljuze
-        // update state with result
-        // copy state
-        // loop for each updated physical
-        //    update local state physical
-        //    if guard holds execute statement
-        //
-        // }
-
+    private Boolean isReachedEndYet(Queue<HybridState> queue, double endSimulation) {
+        for (HybridState hybridState : queue) {
+            if (hybridState.getGlobalTime().getLowerBound() < endSimulation) // CHECKME: Don't need to remove states which endSimulation < UpperBound as it is BFS
+                return true;
+        }
+        return false;
     }
 
     private static void updatePhysicalStates(HashMap<String, PhysicalState> physicalStates, Map<String, HybridState> updatedPhysicalHybridStates) {
@@ -135,26 +142,12 @@ public class SpaceStateGenerator {
                         (BinaryExpression) Objects.requireNonNull(CompilerUtil.getInvariantCondition(physicalDeclarationName, physicalState.getMode())));
                 PhysicalClassDeclaration physicalClassDeclaration = CompilerUtil.getPhysicalClassDeclaration(physicalDeclarationName);
 
-//                if (invariantSatisfiedResult.getDefinite()) {
-//                    if (invariantSatisfiedResult.getValue()) {
-//                        // CHECKME
-//                        checkGuardIfInvariantIsTrue(updatedPhysicalHybridStates, physicalStateEntry, hybridStateEntry,
-//                                guardSatisfiedResult, physicalDeclarationName);
-//                    } else {
-//                            checkGuardIfInvariantIsFalse(guardSatisfiedResult, physicalDeclarationName, physicalState);
-//                    }
-//                } else {
-//                    //Invariant = True
-//                    checkGuardIfInvariantIsTrue(updatedPhysicalHybridStates, physicalStateEntry, hybridStateEntry,
-//                            guardSatisfiedResult, physicalDeclarationName);
-//                }
                 if (invariantSatisfiedResult.getDefinite()) {
                     if (invariantSatisfiedResult.getValue()) {
                         // CHECKME
                         checkGuardIfInvariantIsTrue(updatedPhysicalHybridStates, physicalStateEntry, hybridStateEntry,
                                 guardSatisfiedResult, physicalDeclarationName);
                     } else {
-//                            checkGuardIfInvariantIsFalse(guardSatisfiedResult, physicalDeclarationName, physicalState);
                         System.out.println("Deadlock happened:");
                         System.out.println(hybridStateEntry.getValue());
                         if (updatedPhysicalHybridStates.size() <= 1) {
@@ -164,7 +157,6 @@ public class SpaceStateGenerator {
                         }
                     }
                 } else {
-                    //Invariant = True
                     checkGuardIfInvariantIsTrue(updatedPhysicalHybridStates, physicalStateEntry, hybridStateEntry,
                             guardSatisfiedResult, physicalDeclarationName);
                 }

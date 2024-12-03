@@ -126,7 +126,7 @@ public class ReachabilityAnalysisGraph {
         Map<Integer, HybridState> sortedIntToNodeMap = new TreeMap<>(intToNodeMap);
         String templateIntToNodeMap = "  s%s [shape=\"square\" label=\"%s\"];\n";
         for (Map.Entry<Integer, HybridState> entry : sortedIntToNodeMap.entrySet()) {
-            buffer += String.format(templateIntToNodeMap, entry.getKey(), entry.getKey());
+            buffer += String.format(templateIntToNodeMap, entry.getKey(), entry.getValue().toString());
         }
 
         String blackTemplateEdges = "  s%s -> s%s [label=\"%s\"];\n";

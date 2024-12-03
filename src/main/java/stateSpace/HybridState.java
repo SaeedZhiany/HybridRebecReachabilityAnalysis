@@ -105,12 +105,13 @@ public class HybridState {
         // CHECKME: the order of the states is not guaranteed, is it a problem?
         StringBuilder stringBuilder = new StringBuilder();
 
-        stringBuilder.append(globalTime);
+        stringBuilder.append(globalTime).append("\n");
 
         for (SoftwareState softwareState : softwareStates.values()) {
             stringBuilder.append(softwareState.toString());
             stringBuilder.append(";");
         }
+        stringBuilder.append("\n");
         for (PhysicalState physicalState : physicalStates.values()) {
             stringBuilder.append(physicalState.toString());
             stringBuilder.append(";");
@@ -283,7 +284,7 @@ public class HybridState {
                 ((TimedRebecaParentSuffixPrimary) ((TermPrimary) sendStatement.getRight()).getParentSuffixPrimary()).getAfterExpression(),
                 evaluatorVisitor
         );
-
+        messageArrivalTime.setName("arrivalTime");
         Message message = new Message(actorState.actorName, receiver, serverName, callParameters, messageArrivalTime);
         resetResumeTime(newActorState);
         if (sender.equals(receiver)) {
@@ -346,6 +347,7 @@ public class HybridState {
                 delayStatement.getParentSuffixPrimary().getArguments().get(0),
                 evaluatorVisitor
         );
+        delayTime.setName("resumeTime");
 
         newSoftwareState.setResumeTime(delayTime);
         newHybridState.replaceActorState(newSoftwareState);
@@ -442,23 +444,6 @@ public class HybridState {
 
             }
         }
-
-//        // Adding sets to the list
-//        Set<String> set1 = new HashSet<>();
-//        set1.add("hws");
-//        set1.add("Off");
-//        globalStateModes.add(set1);
-
-//        Set<String> set1 = new HashSet<>();
-//        set1.add("hws1");
-//        set1.add("On");
-//        globalStateModes.add(set1);
-//
-//        Set<String> set4 = new HashSet<>();
-//        set4.add("hws2");
-//        set4.add("Off");
-//        globalStateModes.add(set4);
-
         return  globalStateModes;
     }
 
@@ -489,7 +474,6 @@ public class HybridState {
         double[] intervalsArray = new double[intervalsList.size()];
         for (int i = 0; i < intervalsList.size(); i++)
             intervalsArray[i] = intervalsList.get(i);
-
         return intervalsArray;
     }
 
@@ -512,32 +496,6 @@ public class HybridState {
     }
 
     public double[] getEvents(double currentEvent, double timeInterval) {
-//        -- for test --
-//        for (SoftwareState softwareState : softwareStates.values()) {
-//            int message1ArrivalLowerBound = 1;
-//            int message1ArrivalUpperBound = 5;
-//
-//            int message2ArrivalLowerBound = message1ArrivalLowerBound + 2;
-//            int message2ArrivalUpperBound = message1ArrivalUpperBound;
-//
-//            int globalTimeLowerBound = message1ArrivalLowerBound + 1;
-//            int globalTimeUpperBound = message1ArrivalUpperBound;
-//
-//            Message message1 = new Message(
-//                    "sender",
-//                    "receiver",
-//                    "content",
-//                    new HashMap<>(),
-//                    createContinuousVariable(new BigDecimal(message1ArrivalLowerBound), new BigDecimal(message1ArrivalUpperBound)));
-//            Message message2 = new Message(
-//                    "sender",
-//                    "receiver",
-//                    "content",
-//                    new HashMap<>(),
-//                    createContinuousVariable(new BigDecimal(message2ArrivalLowerBound), new BigDecimal(message2ArrivalUpperBound)));
-//            softwareState.getMessageBag().add(message1);
-//            softwareState.getMessageBag().add(message2);
-//        }
 
         ArrayList<Double> resumeTimes = getSoftwareStatesResumeTimes();
         ArrayList<Double> arrivalTimes = getMessageArrivalTimes();
@@ -583,8 +541,8 @@ public class HybridState {
         this.softwareStates = softwareStates;
     }
 
-    public void updateGlobalTime(double currentEvent) {
-        this.globalTime.setLowerBound(this.globalTime.getUpperBound());
-        this.globalTime.setUpperBound(currentEvent);
+    public void updateGlobalTime(double lowerBound, double upperBound) {
+        this.globalTime.setLowerBound(lowerBound);
+        this.globalTime.setUpperBound(upperBound);
     }
 }

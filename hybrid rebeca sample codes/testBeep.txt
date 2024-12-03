@@ -1,0 +1,58 @@
+reactiveclass Controller(2){
+  knownrebecs {
+    Alarm alarm;}
+
+  msgsrv control(float t){
+    if (t<18.5)  alarm.notify()
+    after (0.3,0.5);
+  }
+}
+reactiveclass Alarm(2){
+  statevars {int count;}
+
+  msgsrv notify() {
+    count = 3;
+    self.beep();
+  }
+  msgsrv beep() {    
+    if (count>0){
+        delay(0.2,0.4);
+        self.beep();
+        count= count-1;
+    }
+  }
+}
+physicalclass HeaterWithSensor(2){
+  knownrebecs {
+    Controller c;}
+
+  statevars {
+    float temp;}
+
+  HeaterWithSensor(float temp_) {
+    temp = temp_;
+    setMode(Off);}
+
+  mode Off {
+    inv(temp>=18){
+      temp' = -1;
+    }
+    guard(temp<=19){
+      c.control(temp);
+      setMode(On);}
+  }
+  mode On {
+    inv(temp<=23){
+      temp' = 1;
+    }
+    guard(temp>=22){
+      setMode(Off);}
+  }
+}
+
+main {
+  HeaterWithSensor hws(c):(20.0F);
+  Controller c(a):();
+  Alarm a():();
+}
+
