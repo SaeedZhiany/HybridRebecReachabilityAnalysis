@@ -37,7 +37,7 @@ physicalclass HeaterWithSensor(2){
     inv(temp>=18){
       temp' = -1;
     }
-    guard(temp<=19){
+    guard(temp<19){
       c.control(temp);
       setMode(On);}
   }
@@ -45,7 +45,7 @@ physicalclass HeaterWithSensor(2){
     inv(temp<=23){
       temp' = 1;
     }
-    guard(temp>=22){
+    guard(temp>22){
       setMode(Off);}
   }
 }

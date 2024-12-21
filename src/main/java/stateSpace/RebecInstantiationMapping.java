@@ -115,6 +115,13 @@ public class RebecInstantiationMapping {
         return result;
     }
 
+    public String[] getActorODEs(String actorName, String mode) {
+        HashSet<String> actorNameMode = new HashSet<>();
+        actorNameMode.add(actorName);
+        actorNameMode.add(mode);
+        return modeToODEs.get(actorNameMode);
+    }
+
     public String[] appendArrays(String[] a, String[] b) {
         List<String> combinedList = new ArrayList<>(Arrays.asList(a));
         combinedList.addAll(Arrays.asList(b));

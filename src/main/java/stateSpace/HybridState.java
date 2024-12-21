@@ -415,6 +415,7 @@ public class HybridState {
 
         String mode = ((TermPrimary) setModeStatement.getParentSuffixPrimary().getArguments().get(0)).getName();
         newPhysicalState.setMode(mode);
+        newPhysicalState.setLastTimeModeChangedLowerBound(globalTime.getLowerBound());
         newHybridState.replaceActorState(newPhysicalState);
         result.add(newHybridState);
         return result;
@@ -495,15 +496,16 @@ public class HybridState {
         this.parentHash = parentHash;
     }
 
-    public double[] getEvents(double currentEvent, double timeInterval) {
+    public double[] getEvents(double globalTimeLowerBound, double timeInterval) {
 
         ArrayList<Double> resumeTimes = getSoftwareStatesResumeTimes();
         ArrayList<Double> arrivalTimes = getMessageArrivalTimes();
 
         ArrayList<Double> combinedList = new ArrayList<>(resumeTimes);
-        combinedList.add(currentEvent + timeInterval);
+//        combinedList.add(globalTimeLowerBound + timeInterval);
+//        combinedList.add(globalTimeUpperBound + timeInterval);
         combinedList.addAll(arrivalTimes);
-        combinedList.removeIf(value -> value <= currentEvent);
+        combinedList.removeIf(value -> value <= globalTimeLowerBound);
 
         double[] Events = combinedList.stream().mapToDouble(Double::doubleValue).toArray();
         Arrays.sort(Events);

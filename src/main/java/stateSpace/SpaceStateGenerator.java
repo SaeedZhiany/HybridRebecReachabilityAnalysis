@@ -45,17 +45,30 @@ public class SpaceStateGenerator {
 
             ReachabilityAnalysisGraph.TreeNode rootNode = reachabilityAnalysisGraph.findNodeInGraph(state);
 
-            List<Set<String>> globalStateModes = state.getGlobalStateModes();
-
-            String[] ODEs = RebecInstantiationMapping.getInstance().getCurrentFlows(globalStateModes);
-
-            double[] intervals = state.getIntervals(ODEs);
-            double timeStep = 1;
+//            List<Set<String>> globalStateModes = state.getGlobalStateModes();
+//
+//            String[] ODEs = RebecInstantiationMapping.getInstance().getCurrentFlows(globalStateModes);
+//
+//            double[] intervals = state.getIntervals(ODEs);
+            double timeStep = 0.5;
+            double stepSize = 0.5;
             double[] nextEvents = state.getEvents(currentEvent, timeStep);
-            double previousEvent = currentEvent;
-            currentEvent = Arrays.stream(nextEvents).min().orElseThrow();
+            ArrayList<Double> nextEventsList = new ArrayList<>(Arrays.stream(nextEvents).boxed().toList());
+            if (nextEvents.length == 0 || currentEvent + timeStep < nextEvents[0]) {
+                nextEventsList.add(currentEvent + timeStep);
+            }
+            nextEventsList.add(Collections.min(nextEventsList) - currentEvent + state.getGlobalTime().getUpperBound());
+            Collections.sort(nextEventsList);
+            double previousEvent = nextEventsList.get(0);
+            if (isFirstRound) {
+                previousEvent = 0;
+            }
+            currentEvent = nextEventsList.get(1);
 
-            double[] reachParams = new double[]{10.0, 0.99, 0.01, 7.0, currentEvent - previousEvent};
+//            if (currentEvent > endSimulation)
+//                currentEvent = endSimulation;
+            if (currentEvent >= endSimulation)
+                continue;
 
             Cloner cloner = new Cloner();
             HybridState updatedPhysicalHybridState = cloner.deepClone(state);
@@ -63,39 +76,49 @@ public class SpaceStateGenerator {
                 updatedPhysicalHybridState.updateGlobalTime(0, currentEvent);
             }
             else {
-                updatedPhysicalHybridState.updateGlobalTime(currentEvent, currentEvent - state.getGlobalTime().getLowerBound() + state.getGlobalTime().getUpperBound());
+                updatedPhysicalHybridState.updateGlobalTime(previousEvent, currentEvent);
             }
             Map<String, HybridState> updatedPhysicalHybridStates = new HashMap<>();
             updatedPhysicalHybridStates.put(updatedPhysicalHybridState.updateHash(), updatedPhysicalHybridState);
-            if (ODEs.length > 0) {
-                double[] result = joszefCaller.call(ODEs, intervals, reachParams);
-                //                double[] result = {0.0, 0.0, 20.0, 20.0, 0.0, 0.01, 20.0, 20.0};
-                int index = 0;
-                int StartIndex = result.length - 2 * ODEs.length;
-                for (String ODE : ODEs) {
-                    String[] components = extractVariableNames(ODE);
-                    String physicalClassName = components[0], odeVariableName = components[1];
-                    double odeVariableLowerBound, odeVariableUpperBound;
-                    if (isFirstRound) {
-                        odeVariableLowerBound = result[2 * index];
-                        odeVariableUpperBound = result[(index * 2) + 1 + StartIndex];
-                        if (odeVariableUpperBound < odeVariableLowerBound) {
-                            double swap;
-                            swap = odeVariableUpperBound;
-                            odeVariableUpperBound = odeVariableLowerBound;
-                            odeVariableLowerBound = swap;
-                        }
-                    }
-                    else {
-                        odeVariableLowerBound = result[2 * index + StartIndex];
-                        odeVariableUpperBound = result[(index * 2) + 1 + StartIndex];
-                    }
-                    PhysicalState physicalState = (PhysicalState) updatedPhysicalHybridState.getActorState(physicalClassName);
-                    physicalState.updateVariable(new IntervalRealVariable(odeVariableName, odeVariableLowerBound, odeVariableUpperBound));
-                    index++;
+
+            for (Map.Entry<String, PhysicalState> physicalState: updatedPhysicalHybridState.getPhysicalStates().entrySet()) {
+                if (isFirstRound) {
+                    calculateActorODEs(joszefCaller, updatedPhysicalHybridState, physicalState, endSimulation, stepSize);
                 }
-                isFirstRound = false;
+                physicalState.getValue().computeODEBoundsForTimeRange(updatedPhysicalHybridState.getGlobalTime(), stepSize, endSimulation);
             }
+
+//            double[] reachParams = new double[]{10.0, 0.99, 0.01, 7.0, currentEvent - previousEvent};
+//
+//            if (ODEs.length > 0) {
+//                double[] result = joszefCaller.call(ODEs, intervals, reachParams);
+//                //                double[] result = {0.0, 0.0, 20.0, 20.0, 0.0, 0.01, 20.0, 20.0};
+//                int index = 0;
+//                int StartIndex = result.length - 2 * ODEs.length;
+//                for (String ODE : ODEs) {
+//                    String[] components = extractVariableNames(ODE);
+//                    String physicalClassName = components[0], odeVariableName = components[1];
+//                    double odeVariableLowerBound, odeVariableUpperBound;
+//                    if (isFirstRound) {
+//                        odeVariableLowerBound = result[2 * index];
+//                        odeVariableUpperBound = result[(index * 2) + 1 + StartIndex];
+//                        if (odeVariableUpperBound < odeVariableLowerBound) {
+//                            double swap;
+//                            swap = odeVariableUpperBound;
+//                            odeVariableUpperBound = odeVariableLowerBound;
+//                            odeVariableLowerBound = swap;
+//                        }
+//                    }
+//                    else {
+//                        odeVariableLowerBound = result[2 * index + StartIndex];
+//                        odeVariableUpperBound = result[(index * 2) + 1 + StartIndex];
+//                    }
+//                    PhysicalState physicalState = (PhysicalState) updatedPhysicalHybridState.getActorState(physicalClassName);
+//                    physicalState.updateVariable(new IntervalRealVariable(odeVariableName, odeVariableLowerBound, odeVariableUpperBound));
+//                    index++;
+//                }
+//                isFirstRound = false;
+//            }
 
             try {
                 updatePhysicalStates(updatedPhysicalHybridState.getPhysicalStates(), updatedPhysicalHybridStates);
@@ -111,12 +134,40 @@ public class SpaceStateGenerator {
                 queue.addAll(generatedHybridStates);
                 ReachabilityAnalysisGraph.TreeNode rootTempNode = reachabilityAnalysisGraph.findNodeInGraph(hybridStateEntry.getValue());
                 for (HybridState hybridState : generatedHybridStates) {
-                    if (!hybridStateEntry.getValue().getHash().equals(hybridState.getHash()))
+                    if (!hybridStateEntry.getValue().getHash().equals(hybridState.getHash())) {
+                        HashMap<String, PhysicalState> newPhysicalStates = hybridState.getPhysicalStates();
+                        HashMap<String, PhysicalState> oldPhysicalStates = hybridStateEntry.getValue().getPhysicalStates();
+                        for (Map.Entry<String, PhysicalState> physicalState: newPhysicalStates.entrySet()) {
+                            if (!physicalState.getValue().getMode().equals(oldPhysicalStates.get(physicalState.getKey()).getMode())) {
+                                calculateActorODEs(joszefCaller, hybridStateEntry.getValue(), physicalState, endSimulation, stepSize);
+                            }
+                        }
                         reachabilityAnalysisGraph.addNode(rootTempNode, hybridState, " NonTimeProgressExecute");
+                    }
                 }
             }
+            isFirstRound = false;
         }
         String graph = reachabilityAnalysisGraph.toDot();
+    }
+
+    private static void calculateActorODEs(JoszefCaller joszefCaller, HybridState hybridState,
+                                           Map.Entry<String, PhysicalState> physicalState, double endSimulation, double stepSize) {
+        double[] actorReachParams = new double[]{10.0, 0.99, stepSize, 7.0, endSimulation - hybridState.getGlobalTime().getLowerBound()};
+        String[] actorODEs = RebecInstantiationMapping.getInstance().getActorODEs(physicalState.getKey(), physicalState.getValue().getMode());
+
+        for (String actorODE : actorODEs) {
+            double[] actorIntervals = hybridState.getIntervals(new String[]{actorODE});
+            if (Math.abs(actorIntervals[0] - 17.44999999999996) < 0.0001)
+                System.out.println("sds");
+//            double[] actorIntervals = new double[]{18.0,21.0};
+            double[] actorResult = joszefCaller.call(new String[]{actorODE}, actorIntervals, actorReachParams);
+            String[] components = extractVariableNames(actorODE);
+            String physicalClassName = components[0], odeVariableName = components[1];
+            List<Double> actorResultList = new ArrayList<>(Arrays.stream(actorResult).boxed().toList());
+
+            physicalState.getValue().addODEResult(odeVariableName, actorResultList);
+        }
     }
 
     private Boolean isReachedEndYet(Queue<HybridState> queue, double endSimulation) {

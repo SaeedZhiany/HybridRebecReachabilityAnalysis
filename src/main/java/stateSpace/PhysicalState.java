@@ -19,6 +19,9 @@ public class PhysicalState extends ActorState {
 
     @Nullable
     private String mode;
+    @Nullable
+    private final Map<String, List<Double>> ODEsResult;
+    private double lastTimeModeChangedLowerBound = 0;
 
     public PhysicalState(
             @Nonnull String actorName,
@@ -30,6 +33,7 @@ public class PhysicalState extends ActorState {
     ) {
         super(actorName, variableValuation, messageBag, sigma, localTime);
         this.mode = mode;
+        this.ODEsResult = new HashMap<>();
     }
 
     public PhysicalState(PhysicalState physicalState) {
@@ -62,6 +66,7 @@ public class PhysicalState extends ActorState {
         }
         this.sigma = newSigma;
         this.localTime = physicalState.getLocalTime();
+        this.ODEsResult = new HashMap<>();
     }
 
     @Nullable
@@ -173,5 +178,81 @@ public class PhysicalState extends ActorState {
         }
 
         return result;
+    }
+
+    @Nullable
+    public Map<String, List<Double>> getODEsResult() {
+        return ODEsResult;
+    }
+
+    public List<Double> getODEResult(String ODEVariable) {
+        return ODEsResult.get(ODEVariable);
+    }
+
+    public double getLastTimeModeChangedLowerBound() {
+        return lastTimeModeChangedLowerBound;
+    }
+
+    public void setLastTimeModeChangedLowerBound(double lastTimeModeChangedLowerBound) {
+        this.lastTimeModeChangedLowerBound = lastTimeModeChangedLowerBound;
+    }
+
+    public void computeODEBoundsForTimeRange(ContinuousVariable globalTime, double stepSize, double endSimulation) {
+        double globalLowerBound = globalTime.getLowerBound();
+        double globalUpperBound = globalTime.getUpperBound();
+
+        int startIndex = (int) Math.floor((globalLowerBound - lastTimeModeChangedLowerBound) / stepSize);
+        int endIndex = (int) Math.floor((globalUpperBound - lastTimeModeChangedLowerBound) / stepSize);
+
+        if (startIndex < 0) startIndex = 0;
+//        if (endIndex > (int) Math.floor((endSimulation - lastTimeModeChangedLowerBound) / stepSize)) {
+//            endIndex = (int) Math.ceil((endSimulation - lastTimeModeChangedLowerBound) / stepSize);
+//        }
+
+        for (Map.Entry<String, List<Double>> entry : ODEsResult.entrySet()) {
+            String variableName = entry.getKey();
+            List<Double> results = entry.getValue();
+
+            double minLowerBound = Double.POSITIVE_INFINITY;
+            double maxUpperBound = Double.NEGATIVE_INFINITY;
+
+            for (int i = startIndex; i <= endIndex; i++) {
+//                int baseIndex = i * 4;
+//                if (baseIndex + 3 >= results.size()) break;
+
+                int baseIndex = i * 2;
+                if (baseIndex + 1 >= results.size()) {
+                    minLowerBound = results.get(results.size() - 1);
+                    maxUpperBound = results.get(results.size() - 1);
+
+                    break;
+                }
+
+//                double lowerBoundLowerInterval = results.get(baseIndex);
+//                double upperBoundLowerInterval = results.get(baseIndex + 1);
+//                double lowerBoundUpperInterval = results.get(baseIndex + 2);
+//                double upperBoundUpperInterval = results.get(baseIndex + 3);
+                double lowerBoundLowerInterval = results.get(baseIndex);
+//                double upperBoundLowerInterval = results.get(baseIndex + 1);
+                double lowerBoundUpperInterval = results.get(baseIndex + 1);
+//                double upperBoundUpperInterval = results.get(baseIndex + 3);
+
+
+//                minLowerBound = Math.min(minLowerBound, Math.min(lowerBoundLowerInterval, upperBoundLowerInterval));
+//                maxUpperBound = Math.max(maxUpperBound, Math.max(lowerBoundUpperInterval, upperBoundUpperInterval));
+                minLowerBound = Math.min(minLowerBound, lowerBoundLowerInterval);
+                maxUpperBound = Math.max(maxUpperBound, lowerBoundUpperInterval);
+            }
+
+            ((IntervalRealVariable) variablesValuation.get(variableName)).setLowerBound(minLowerBound);
+            ((IntervalRealVariable) variablesValuation.get(variableName)).setUpperBound(maxUpperBound);
+        }
+
+    }
+
+    public void addODEResult(String ODEVaribale, List<Double> results) {
+        results.remove(0);
+        results.remove(0);
+        ODEsResult.put(ODEVaribale, results);
     }
 }
