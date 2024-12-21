@@ -202,7 +202,7 @@ public class PhysicalState extends ActorState {
         double globalUpperBound = globalTime.getUpperBound();
 
         int startIndex = (int) Math.floor((globalLowerBound - lastTimeModeChangedLowerBound) / stepSize);
-        int endIndex = (int) Math.floor((globalUpperBound - lastTimeModeChangedLowerBound) / stepSize);
+        int endIndex = (int) Math.ceil((globalUpperBound - lastTimeModeChangedLowerBound) / stepSize);
 
         if (startIndex < 0) startIndex = 0;
 //        if (endIndex > (int) Math.floor((endSimulation - lastTimeModeChangedLowerBound) / stepSize)) {
@@ -216,7 +216,7 @@ public class PhysicalState extends ActorState {
             double minLowerBound = Double.POSITIVE_INFINITY;
             double maxUpperBound = Double.NEGATIVE_INFINITY;
 
-            for (int i = startIndex; i <= endIndex; i++) {
+            for (int i = startIndex; i < endIndex; i++) {
 //                int baseIndex = i * 4;
 //                if (baseIndex + 3 >= results.size()) break;
 

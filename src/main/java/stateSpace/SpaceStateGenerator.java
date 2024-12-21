@@ -67,7 +67,7 @@ public class SpaceStateGenerator {
 
 //            if (currentEvent > endSimulation)
 //                currentEvent = endSimulation;
-            if (currentEvent >= endSimulation)
+            if (previousEvent >= endSimulation)
                 continue;
 
             Cloner cloner = new Cloner();
